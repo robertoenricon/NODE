@@ -1,0 +1,3 @@
+ola node
+streams trabalham com dados em pedacos
+isso evita carregar arquivos grandes inteiros na memoria

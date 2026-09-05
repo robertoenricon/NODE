@@ -1,0 +1,12 @@
+services:
+  app:
+    build:
+      context: .
+      target: prod
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+    volumes: !reset []
+    restart: unless-stopped

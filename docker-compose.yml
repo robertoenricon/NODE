@@ -1,0 +1,19 @@
+services:
+  app:
+    build:
+      context: .
+      target: dev
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      - .:/app
+      # volume anônimo protege o node_modules do container
+      # de ser sobrescrito pelo bind mount do host
+      - /app/node_modules
+    restart: unless-stopped
