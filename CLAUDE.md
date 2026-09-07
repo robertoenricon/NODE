@@ -114,34 +114,10 @@ README.md                   # foco em Docker
    `/app/node_modules` protege as dependências da imagem. Mudou `package.json`?
    Precisa de `--build`.
 
-## Dívidas e divergências conhecidas
-
-Contexto para você não "descobrir" isto de novo a cada sessão, e para virar backlog de estudo:
-
-- 🔴 `README.md` afirma que a app usa **Express 5**. Não usa — não há Express no
-  `package.json`. Corrigir quando eu pedir.
-- 🟡 O índice do `TUTORIAL.MD` está com as definições de **Buffer e Stream trocadas**
-  (Buffer está descrito como "mecanismo que entrega aos poucos"; é o contrário).
-- 🟡 `w1BUFFER.MD` manda rodar `node src/buffer/buffer-example.js`, mas esse arquivo só
-  exporta a função — rodar direto não imprime nada. O `stream-example.js` tem o guard
-  `process.argv[1] === import.meta.filename`; o de buffer não tem.
-- 🟡 `POST /users`: o `JSON.parse` está dentro do `try` geral, então corpo malformado
-  vira **500** em vez de **400**.
-- 🟡 `POST /users`: `name` e `email` não são validados (aceita `undefined`), e não há
-  limite de tamanho do corpo — payload gigante é lido inteiro para a memória.
-- 🟡 `id: users.length + 1` colide assim que existir remoção.
-- 🟡 `HOST` só aparece no log; o `listen` é fixo em `'0.0.0.0'` (correto para container,
-  mas a variável dá a impressão errada).
-- 🟢 Typo na mensagem de erro 400: `"inválid"`.
-- 🟢 Sem testes automatizados. Node 24 tem `node:test` nativo — é um bom tema futuro,
-  sem instalar nada.
-
 ## Temas naturais para os próximos passos
 
 Ordem sugerida, do mais próximo do que já existe para o mais distante:
 validação de payload → roteador próprio (extrair do `if/else`) → `node:test` →
-middlewares na mão → variáveis de ambiente e config → persistência (arquivo, depois banco) →
-event loop e `EventEmitter` → cluster/worker threads.
+middlewares na mão → variáveis de ambiente e config → persistência (arquivo, depois banco) → event loop e `EventEmitter` → cluster/worker threads.
 
-Quando eu escolher um tema, comece pelo **problema que ele resolve no código que já existe
-aqui**, não por teoria solta.
+Quando eu escolher um tema, comece pelo **problema que ele resolve no código que já existe aqui**, não por teoria solta.
