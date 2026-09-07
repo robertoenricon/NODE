@@ -14,6 +14,14 @@ Um **Buffer** é um pedaço de memória bruta, que guarda **bytes**. JavaScript 
 
 Na prática o Buffer aparece sempre que dados **entram ou saem** do processo:
 
+
+```  
+Conclusão:
+Buffer é um espaço na memória, usado para transitar dados de forma rápida, 
+salvar e ler de forma muito performatica, 
+pois você consegue ler de forma parcialmente binária ao invés de uma string
+```
+
 - corpo de requisições HTTP
 - upload de arquivos
 - streams
