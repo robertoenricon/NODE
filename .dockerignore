@@ -7,7 +7,6 @@ docker-compose*.yml
 .gitignore
 .env
 .env.*
-*.md
 .vscode
 .idea
 coverage
