@@ -12,3 +12,4 @@ docker-compose*.yml
 .idea
 coverage
 dist
+src/stream/stream-output.txt
