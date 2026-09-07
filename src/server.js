@@ -4,6 +4,9 @@ import http from 'node:http';
 import { createBufferExample } from './buffer/buffer-example.js';
 import { createStreamExample } from './stream/stream-example.js';
 
+// Middlewares
+import { json } from './middlewares/json.js';
+
 const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST || 'localhost';
 
@@ -51,31 +54,19 @@ const server = http.createServer(async (req, res) => {
 
     if (method === 'POST' && url === '/users') {
 
-      // Precisa consumir o stream ANTES de decidir qualquer coisa: só depois
-      // de ler todos os chunks dá pra saber se o corpo veio vazio.
-      const buffers = []
-      for await (const chunk of req) {
-        buffers.push(chunk)
-      }
+      // Aguardar o consumo do stream e a conversão para JSON antes de continuar.
+      // pois eu tenho async, com await dentro dela, então, preciso chamar o json() com await, senão o body vai ser uma Promise e não o objeto que eu quero.
+      const body = await json(req)
 
-      let body = ""
-      if (buffers.length !== 0) {
-        // Os bytes viram objeto: junta os chunks -> texto -> JSON.
-        body = JSON.parse(Buffer.concat(buffers).toString('utf8'))
-      }
-
-      // JSON.parse devolve QUALQUER JSON válido: "um texto", 42, [] e null
-      if (typeof body !== 'object' || body === null || Array.isArray(body)) {
+      if (body === null) {
         res.setHeader('Content-Type', 'application/json')
         res.writeHead(400)
 
         return res.end(JSON.stringify({
-          error: "Corpo da requisição vazio ou inválid",
+          error: 'Corpo da requisição vazio ou inválido',
         }))
       }
 
-      // Monta o usuário campo a campo: o que entra na lista tem sempre a mesma
-      // forma, em vez de ser o que o cliente resolveu mandar.
       const user = {
         id: users.length + 1,
         name: body.name,
