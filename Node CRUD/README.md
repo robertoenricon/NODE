@@ -1,6 +1,6 @@
 # Node no Docker
 
-App Node 24 (Express 5, ESM) rodando em container. Não é preciso ter Node instalado na máquina.
+App Node 24 (`node:http` puro, ESM, zero dependências de runtime) rodando em container.
 
 ## Desenvolvimento
 

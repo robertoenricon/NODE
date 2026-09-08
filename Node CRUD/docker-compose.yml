@@ -1,3 +1,5 @@
+# Nome fixo do projeto: sem isto o Compose deriva do nome da pasta
+name: node-crud
 services:
   app:
     build:
