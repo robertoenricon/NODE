@@ -12,6 +12,7 @@
     "dev": "nodemon -L src/server.js"
   },
   "devDependencies": {
+    "@types/node": "^24.13.3",
     "nodemon": "^3.1.10"
   }
 }

@@ -44,7 +44,7 @@ explicando o que ela faz por baixo dos panos.
 | `GET /buffer` | 200 `{bufferExample}` |
 | `GET /stream` | 200 `{streamExample}` — `await` obrigatório |
 | `GET /users` | 200 `{users}` |
-| `POST /users` | 400 `{error:'Corpo da requisição vazio ou inválido'}` quando `json()` devolve `null`; 201 `{status, user, datetime}` |
+| `POST /users` | 400 `{error:'Corpo da requisição vazio ou inválido'}` quando `json()` devolve `null`; 201 `{status, user, datetime}`. `user.id` é **string UUID** (`randomUUID()` do `node:crypto`), não número. |
 | qualquer outra | 404 sem corpo |
 
 ## Decisões já tomadas (não re-sugira)
@@ -60,7 +60,7 @@ explicando o que ela faz por baixo dos panos.
 
 - 🟡 `POST /users` aceita `{}`: cria usuário com `name`/`email` `undefined`. É o próximo tema.
 - 🟡 `json()` não limita o tamanho do corpo — acumula todos os chunks em memória.
-- 🟢 `id: users.length + 1` gera id duplicado no dia em que existir remoção.
+- ~~🟢 `id: users.length + 1` gera id duplicado no dia em que existir remoção.~~ Resolvido: id agora é `randomUUID()`.
 - 🟢 Aviso do editor sobre `Buffer` em `json.js` é falta de `@types/node`, não erro de código.
 
 ## Convenções

@@ -6,3 +6,4 @@ npm-debug.log*
 coverage
 dist
 src/stream/stream-output.txt
+db.json

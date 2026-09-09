@@ -1,8 +1,15 @@
 // Importa o módulo HTTP nativo do Node. O prefixo 'node:' deixa explícito que é um módulo interno (não um pacote do node_modules) — evita ambiguidade e é
 // levemente mais rápido de resolver.
 import http from 'node:http';
+
+// randomUUID gera um identificador único a partir de aleatoriedade criptográfica.
+import { randomUUID } from 'node:crypto';
+
 import { createBufferExample } from './buffer/buffer-example.js';
 import { createStreamExample } from './stream/stream-example.js';
+
+// Persistencia de dados
+import { Database } from './database.js';
 
 // Middlewares
 import { json } from './middlewares/json.js';
@@ -10,7 +17,7 @@ import { json } from './middlewares/json.js';
 const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST || 'localhost';
 
-const users = []
+const database = new Database()
 
 // createServer cria o servidor e recebe uma função que o Node chama UMA VEZ PARA CADA requisição que chegar. Ela recebe dois objetos:
 //   req -> o que o cliente enviou (método, url, headers, corpo)
@@ -21,7 +28,7 @@ const server = http.createServer(async (req, res) => {
   const { method, url } = req
 
   try {
-      
+
     if (method === 'GET' && url === '/stream') {
       // await: o stream entrega os chunks ao longo do tempo, não no ato da chamada.
       // Sem o await, o JSON.stringify receberia uma Promise e devolveria {}.
@@ -45,11 +52,12 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (method === 'GET' && url === '/users') {
+      // const {name, email} = database.select('users')
+      const users = database.select('users')
+
       return res
         .setHeader('Content-type', 'application/json')
-        .end(JSON.stringify({
-          users,
-        }))
+        .end(JSON.stringify(users))
     }
 
     if (method === 'POST' && url === '/users') {
@@ -68,12 +76,15 @@ const server = http.createServer(async (req, res) => {
       }
 
       const user = {
-        id: users.length + 1,
+        // O UUID não depende do que já está gravado: dispensa ler a tabela e calcular
+        // "o maior id + 1". Id sequencial volta a repetir no dia em que existir remoção
+        // (apagar o 3 de [1,2,3] faz o próximo ser 3 de novo) — com UUID isso não acontece.
+        id: randomUUID(),
         name: body.name,
         email: body.email,
       }
 
-      users.push(user)
+      database.insert('users', user)
 
       res.setHeader('Content-Type', 'application/json')
       res.writeHead(201)
