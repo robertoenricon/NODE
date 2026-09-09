@@ -32,7 +32,10 @@ explicando o que ela faz por baixo dos panos.
 
 | Arquivo | O que é |
 | --- | --- |
-| `src/server.js` | `http.createServer(async (req, res))` + roteamento manual. `try/catch` externo → 500 `{error:'Erro interno', message}`. `PORT`/`HOST` por env (3000/localhost), `listen` em `0.0.0.0`. Estado: `const users = []`. |
+| `src/server.js` | `http.createServer(async (req, res))`. **Não conhece rota nenhuma**: faz `routes.find(...)` por método + caminho exato, 404 quando não acha, `return await route.handler(req, res)` quando acha. `try/catch` externo → 500 `{error:'Erro interno', message}`. `PORT`/`HOST` por env (3000/localhost), `listen` em `0.0.0.0`. |
+| `src/routes.js` | `export const routes` — array de `{method, path, handler}`. `handler` é a **referência da função**, não string. `path` é string comparada com `===`. |
+| `src/handlers/*.js` | Um handler por rota, assinatura `(req, res)`, escreve a própria resposta. `stream.js`, `buffer.js`, `health.js`, `users.js` (`getUsersHandler` + `createUserHandler`). A instância `new Database()` vive em `users.js`. |
+| `src/database.js` | `class Database` com `#database` em memória, `select(table)` → array (`?? []`), `insert(table, data)` → grava e persiste. `#persis()` escreve `files/database.json` (caminho por `import.meta.url`). Construtor lê o arquivo **sem ninguém poder esperar**. |
 | `src/middlewares/json.js` | `json(req)` → objeto **ou `null`**. Consome o stream, `JSON.parse`, rejeita o que não for objeto (`"texto"`, `42`, `[]`, `null`). Não escreve na resposta. |
 | `src/buffer/buffer-example.js` | `createBufferExample()` — síncrona, devolve dados. |
 | `src/stream/stream-example.js` | `createStreamExample()` — **async**, lê `stream-input.txt`. |
@@ -43,15 +46,19 @@ explicando o que ela faz por baixo dos panos.
 | `GET /health` | 200 `{status, datetime}` |
 | `GET /buffer` | 200 `{bufferExample}` |
 | `GET /stream` | 200 `{streamExample}` — `await` obrigatório |
-| `GET /users` | 200 `{users}` |
+| `GET /users` | 200 com o **array puro** de usuários (não `{users}`) |
 | `POST /users` | 400 `{error:'Corpo da requisição vazio ou inválido'}` quando `json()` devolve `null`; 201 `{status, user, datetime}`. `user.id` é **string UUID** (`randomUUID()` do `node:crypto`), não número. |
 | qualquer outra | 404 sem corpo |
 
 ## Decisões já tomadas (não re-sugira)
 
-- **Estado em memória** — some a cada restart, é intencional. Banco é tema futuro.
-- **Roteamento `if (method === 'X' && url === '/y')` com `return` cedo** — mantenha o padrão
-  até eu decidir extrair um roteador; quando extrair, quero entender o porquê antes.
+- **Persistência em arquivo JSON** — `files/database.json` via `class Database`. Banco de
+  verdade é tema futuro.
+- ~~**Roteamento `if (method === 'X' && url === '/y')` com `return` cedo**~~ Extraído: tabela
+  de rotas em `src/routes.js` + handlers em `src/handlers/`. O `server.js` só procura e chama.
+- **Handler é referência de função, não string** — nome em string exigiria um mapa nome→função
+  no roteador, e o erro de digitação só apareceria na requisição. Com a função direta, quebra
+  no import. `eval`/`new Function` para resolver nome está fora de questão.
 - **Middleware transforma, rota decide** — `json()` só converte e devolve `null` no erro;
   quem escolhe o status HTTP é a rota, que conhece o contrato dela (SRP: uma razão para mudar).
 - **Sem framework e sem lib de validação** — ver Stack.
@@ -60,6 +67,10 @@ explicando o que ela faz por baixo dos panos.
 
 - 🟡 `POST /users` aceita `{}`: cria usuário com `name`/`email` `undefined`. É o próximo tema.
 - 🟡 `json()` não limita o tamanho do corpo — acumula todos os chunks em memória.
+- 🟡 O construtor de `Database` lê o arquivo de forma assíncrona sem ninguém poder esperar:
+  requisição que chegue nos primeiros milissegundos vê `#database` vazio.
+- 🟡 `path === url` não casa query string (`/users?x=1`) nem rota com parâmetro (`/users/:id`).
+  Vira `RegExp` quando o CRUD precisar de `PUT`/`DELETE` por id.
 - ~~🟢 `id: users.length + 1` gera id duplicado no dia em que existir remoção.~~ Resolvido: id agora é `randomUUID()`.
 - 🟢 Aviso do editor sobre `Buffer` em `json.js` é falta de `@types/node`, não erro de código.
 
@@ -102,8 +113,8 @@ curl -i -X POST http://localhost:3000/users -H "Content-Type: application/json" 
 
 ## Próximos temas
 
-validação de payload → roteador próprio (extrair do `if/else`) → `node:test` → middlewares na
-mão → env e config → persistência (arquivo, depois banco) → event loop e `EventEmitter` →
+validação de payload → rota com parâmetro (`RegExp` no roteador, `PUT`/`DELETE` por id) →
+`node:test` → middlewares na mão → env e config → banco de verdade → event loop e `EventEmitter` →
 cluster/worker threads.
 
 Quando eu escolher um tema, comece pelo **problema que ele resolve no código que já existe aqui**.
