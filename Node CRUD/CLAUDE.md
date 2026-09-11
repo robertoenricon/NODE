@@ -32,9 +32,10 @@ explicando o que ela faz por baixo dos panos.
 
 | Arquivo | O que é |
 | --- | --- |
-| `src/server.js` | `http.createServer(async (req, res))`. **Não conhece rota nenhuma**: faz `routes.find(...)` por método + caminho exato, 404 quando não acha, `return await route.handler(req, res)` quando acha. `try/catch` externo → 500 `{error:'Erro interno', message}`. `PORT`/`HOST` por env (3000/localhost), `listen` em `0.0.0.0`. |
-| `src/routes.js` | `export const routes` — array de `{method, path, handler}`. `handler` é a **referência da função**, não string. `path` é string comparada com `===`. |
-| `src/handlers/*.js` | Um handler por rota, assinatura `(req, res)`, escreve a própria resposta. `stream.js`, `buffer.js`, `health.js`, `users.js` (`getUsersHandler` + `createUserHandler`). A instância `new Database()` vive em `users.js`. |
+| `src/server.js` | `http.createServer(async (req, res))`. **Não conhece rota nenhuma**: faz `routes.find(...)` por método + `path.test(url)`, 404 quando não acha. Quando acha, roda `url.match(route.path)`, preenche `req.params = matched.groups ?? {}` e faz `return route.handler(req, res)` (**sem `await`** — ver pendências). `try/catch` externo → 500 `{error:'Erro interno', message}`. `PORT`/`HOST` por env (3000/localhost), `listen` em `0.0.0.0`. |
+| `src/routes.js` | `export const routes` — array de `{method, path, handler}`. `handler` é a **referência da função**, não string. `path` é **RegExp**, gerada por `buildRoutePath('/users/:id')`. |
+| `src/utils/build-route-path.js` | `buildRoutePath(path)` — troca cada `:nome` por grupo nomeado `(?<nome>[^/]+)` e ancora com `^...$`. É o que faz `req.params` existir. |
+| `src/handlers/*.js` | Um handler por rota, assinatura `(req, res)`, escreve a própria resposta. `stream.js`, `buffer.js`, `health.js`, `users.js` (`getUsersHandler` + `getUserByIdHandler` + `createUserHandler`). A instância `new Database()` vive em `users.js`. |
 | `src/database.js` | `class Database` com `#database` em memória, `select(table)` → array (`?? []`), `insert(table, data)` → grava e persiste. `#persis()` escreve `files/database.json` (caminho por `import.meta.url`). Construtor lê o arquivo **sem ninguém poder esperar**. |
 | `src/middlewares/json.js` | `json(req)` → objeto **ou `null`**. Consome o stream, `JSON.parse`, rejeita o que não for objeto (`"texto"`, `42`, `[]`, `null`). Não escreve na resposta. |
 | `src/buffer/buffer-example.js` | `createBufferExample()` — síncrona, devolve dados. |
@@ -47,6 +48,7 @@ explicando o que ela faz por baixo dos panos.
 | `GET /buffer` | 200 `{bufferExample}` |
 | `GET /stream` | 200 `{streamExample}` — `await` obrigatório |
 | `GET /users` | 200 com o **array puro** de usuários (não `{users}`) |
+| `GET /users/:id` | 200 com o **objeto puro** do usuário; 404 `{error:'Usuário não encontrado'}` quando o id não existe. Filtro com `.find()` **no handler** — o `Database` só sabe devolver a tabela inteira |
 | `POST /users` | 400 `{error:'Corpo da requisição vazio ou inválido'}` quando `json()` devolve `null`; 201 `{status, user, datetime}`. `user.id` é **string UUID** (`randomUUID()` do `node:crypto`), não número. |
 | qualquer outra | 404 sem corpo |
 
@@ -56,6 +58,12 @@ explicando o que ela faz por baixo dos panos.
   verdade é tema futuro.
 - ~~**Roteamento `if (method === 'X' && url === '/y')` com `return` cedo**~~ Extraído: tabela
   de rotas em `src/routes.js` + handlers em `src/handlers/`. O `server.js` só procura e chama.
+- **Roteamento por `RegExp` ancorada** — `path` deixou de ser string comparada com `===`.
+  Todas as rotas passam por `buildRoutePath`, inclusive as sem parâmetro, para o `server.js`
+  comparar tudo do mesmo jeito. Âncoras `^$` tornam `/users` e `/users/:id` excludentes,
+  então a ordem no array não importa.
+- **Parâmetro de rota vira `req.params`** — o roteador anexa os grupos nomeados na `req`
+  antes de chamar o handler. O handler não conhece RegExp; recebe `{ id }` pronto.
 - **Handler é referência de função, não string** — nome em string exigiria um mapa nome→função
   no roteador, e o erro de digitação só apareceria na requisição. Com a função direta, quebra
   no import. `eval`/`new Function` para resolver nome está fora de questão.
@@ -69,8 +77,14 @@ explicando o que ela faz por baixo dos panos.
 - 🟡 `json()` não limita o tamanho do corpo — acumula todos os chunks em memória.
 - 🟡 O construtor de `Database` lê o arquivo de forma assíncrona sem ninguém poder esperar:
   requisição que chegue nos primeiros milissegundos vê `#database` vazio.
-- 🟡 `path === url` não casa query string (`/users?x=1`) nem rota com parâmetro (`/users/:id`).
-  Vira `RegExp` quando o CRUD precisar de `PUT`/`DELETE` por id.
+- ~~🟡 `path === url` não casa rota com parâmetro (`/users/:id`).~~ Resolvido: roteador usa
+  `RegExp` com grupo nomeado (`src/utils/build-route-path.js`) e expõe `req.params`.
+- 🟡 A **query string continua sem casar**: `/users?x=1` dá 404, porque o `$` da RegExp
+  exige que a URL termine no caminho. Separar `?` antes de comparar é tema à parte.
+- 🟡 `server.js` chama `return route.handler(req, res)` **sem `await`**: se um handler `async`
+  rejeitar, o `try/catch` externo não pega e vira unhandled rejection em vez de 500.
+- 🟡 O roteador roda a RegExp duas vezes por requisição (`test` no `find`, depois `match`).
+  Irrelevante nesta escala; some no dia em que o `find` virar um `for` que já guarda o match.
 - ~~🟢 `id: users.length + 1` gera id duplicado no dia em que existir remoção.~~ Resolvido: id agora é `randomUUID()`.
 - 🟢 Aviso do editor sobre `Buffer` em `json.js` é falta de `@types/node`, não erro de código.
 

@@ -17,11 +17,15 @@ const server = http.createServer(async (req, res) => {
   try {
 
     // find devolve a PRIMEIRA rota cujo método e caminho batem, ou undefined se não achar.
+    // path virou RegExp: test devolve true/false para "essa URL casa com essa rota?".
     const route = routes.find(
-      candidate => candidate.method === method && candidate.path === url
+      route => route.method === method && route.path.test(url)
     )
 
     if (route) {
+      const matched = url.match(route.path)
+      req.params = matched.groups ?? {}
+
       return route.handler(req, res)
     }
     
