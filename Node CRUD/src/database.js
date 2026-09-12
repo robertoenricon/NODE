@@ -43,6 +43,21 @@ export class Database {
         return data
     }
 
+    // Atualiza um registro na tabela
+    update (table, id, data) {
+        const tableData = this.#database[table] ?? []
+        const index = tableData.findIndex(item => item.id === id)
+
+        if (index > -1) {
+            tableData[index] = data
+            this.#database[table] = tableData
+            this.#persis()
+            return data
+        }
+
+        return null
+    }
+
     // Grava o estado da memória no disco. Privado porque persistir é decisão interna da classe: quem usa chama insert, nunca "salva" na mão.
     #persis() {
         // JSON.stringify converte o objeto em texto, que é o que um arquivo sabe guardar.

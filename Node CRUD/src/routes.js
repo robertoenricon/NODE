@@ -1,6 +1,6 @@
 import { streamHandler } from './handlers/stream.js';
 import { bufferHandler } from './handlers/buffer.js';
-import { getUsersHandler, getUserByIdHandler, createUserHandler } from './handlers/users.js';
+import { getUsersHandler, getUserByIdHandler, createUserHandler, updateUserHandler } from './handlers/users.js';
 import { healthHandler } from './handlers/health.js';
 
 // Converte o caminho escrito à mão na RegExp que o server.js compara com a URL.
@@ -36,6 +36,13 @@ export const routes = [
     path: buildRoutePath('/users'),
     handler: createUserHandler
   },
+  //Atualiza um usuário pelo ID
+  {
+    method: 'PUT',
+    path: buildRoutePath('/users/:id'),
+    handler: updateUserHandler
+  },
+  // Saude da aplicação
   {
     method: 'GET',
     path: buildRoutePath('/health'),

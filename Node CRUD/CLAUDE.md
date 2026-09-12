@@ -35,8 +35,8 @@ explicando o que ela faz por baixo dos panos.
 | `src/server.js` | `http.createServer(async (req, res))`. **Não conhece rota nenhuma**: faz `routes.find(...)` por método + `path.test(url)`, 404 quando não acha. Quando acha, roda `url.match(route.path)`, preenche `req.params = matched.groups ?? {}` e faz `return route.handler(req, res)` (**sem `await`** — ver pendências). `try/catch` externo → 500 `{error:'Erro interno', message}`. `PORT`/`HOST` por env (3000/localhost), `listen` em `0.0.0.0`. |
 | `src/routes.js` | `export const routes` — array de `{method, path, handler}`. `handler` é a **referência da função**, não string. `path` é **RegExp**, gerada por `buildRoutePath('/users/:id')`. |
 | `src/utils/build-route-path.js` | `buildRoutePath(path)` — troca cada `:nome` por grupo nomeado `(?<nome>[^/]+)` e ancora com `^...$`. É o que faz `req.params` existir. |
-| `src/handlers/*.js` | Um handler por rota, assinatura `(req, res)`, escreve a própria resposta. `stream.js`, `buffer.js`, `health.js`, `users.js` (`getUsersHandler` + `getUserByIdHandler` + `createUserHandler`). A instância `new Database()` vive em `users.js`. |
-| `src/database.js` | `class Database` com `#database` em memória, `select(table)` → array (`?? []`), `insert(table, data)` → grava e persiste. `#persis()` escreve `files/database.json` (caminho por `import.meta.url`). Construtor lê o arquivo **sem ninguém poder esperar**. |
+| `src/handlers/*.js` | Um handler por rota, assinatura `(req, res)`, escreve a própria resposta. `stream.js`, `buffer.js`, `health.js`, `users.js` (`getUsersHandler` + `getUserByIdHandler` + `createUserHandler` + `updateUserHandler`). A instância `new Database()` vive em `users.js`. |
+| `src/database.js` | `class Database` com `#database` em memória, `select(table)` → array (`?? []`), `insert(table, data)` → grava e persiste, `update(table, id, data)` → `findIndex` por id, **sobrescreve o registro inteiro** e devolve `data`; devolve `null` quando o id não existe (índice `-1`). `#persis()` escreve `files/database.json` (caminho por `import.meta.url`). Construtor lê o arquivo **sem ninguém poder esperar**. |
 | `src/middlewares/json.js` | `json(req)` → objeto **ou `null`**. Consome o stream, `JSON.parse`, rejeita o que não for objeto (`"texto"`, `42`, `[]`, `null`). Não escreve na resposta. |
 | `src/buffer/buffer-example.js` | `createBufferExample()` — síncrona, devolve dados. |
 | `src/stream/stream-example.js` | `createStreamExample()` — **async**, lê `stream-input.txt`. |
@@ -50,6 +50,7 @@ explicando o que ela faz por baixo dos panos.
 | `GET /users` | 200 com o **array puro** de usuários (não `{users}`) |
 | `GET /users/:id` | 200 com o **objeto puro** do usuário; 404 `{error:'Usuário não encontrado'}` quando o id não existe. Filtro com `.find()` **no handler** — o `Database` só sabe devolver a tabela inteira |
 | `POST /users` | 400 `{error:'Corpo da requisição vazio ou inválido'}` quando `json()` devolve `null`; 201 `{status, user, datetime}`. `user.id` é **string UUID** (`randomUUID()` do `node:crypto`), não número. |
+| `PUT /users/:id` | 400 `{error:'Corpo da requisição vazio ou inválido'}` quando `json()` devolve `null`; 404 `{error:'Usuário não encontrado'}` quando `Database.update` devolve `null`; 200 `{status, user, datetime}`. Substituição total: o id vem da URL, `name`/`email` vêm do corpo. |
 | qualquer outra | 404 sem corpo |
 
 ## Decisões já tomadas (não re-sugira)
@@ -73,7 +74,9 @@ explicando o que ela faz por baixo dos panos.
 
 ## Pendências conhecidas (já apontadas — não reporte como descoberta nova)
 
-- 🟡 `POST /users` aceita `{}`: cria usuário com `name`/`email` `undefined`. É o próximo tema.
+- 🟡 `POST /users` e `PUT /users/:id` aceitam `{}`: gravam `name`/`email` `undefined`. No `PUT`
+  o efeito é pior, porque ele substitui o registro inteiro — corpo sem `email` apaga o email
+  que existia. É o próximo tema (validação de payload).
 - 🟡 `json()` não limita o tamanho do corpo — acumula todos os chunks em memória.
 - 🟡 O construtor de `Database` lê o arquivo de forma assíncrona sem ninguém poder esperar:
   requisição que chegue nos primeiros milissegundos vê `#database` vazio.

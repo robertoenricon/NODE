@@ -83,3 +83,49 @@ export async function createUserHandler(req, res) {
     datetime: new Date().toISOString()
   }))
 }
+
+// Atualiza um usuário pelo ID
+export async function updateUserHandler(req, res) {
+  const { id } = req.params
+  
+  // Aguardar o consumo do stream e a conversão para JSON antes de continuar.
+  // pois eu tenho async, com await dentro dela, então, preciso chamar o json() com await, senão o body vai ser uma Promise e não o objeto que eu quero.
+  const body = await json(req)
+
+  if (body === null) {
+    res.setHeader('Content-Type', 'application/json')
+    res.writeHead(400)
+
+    return res.end(JSON.stringify({
+      error: 'Corpo da requisição vazio ou inválido',
+    }))
+  }
+
+  // O id vem da URL, não do corpo: quem manda no recurso é o caminho da rota.
+  const user = {
+    id,
+    name: body.name,
+    email: body.email,
+  }
+
+  // A assinatura é update(table, id, data) — o id vai separado do registro, porque é ele que o Database usa no findIndex para achar a posição a sobrescrever.
+  const updatedUser = database.update('users', id, user)
+
+  if (updatedUser === null) {
+    res.setHeader('Content-Type', 'application/json')
+    res.writeHead(404)
+
+    return res.end(JSON.stringify({
+      error: 'Usuário não encontrado',
+    }))
+  }
+
+  res.setHeader('Content-Type', 'application/json')
+  res.writeHead(200)
+
+  return res.end(JSON.stringify({
+    status: 'Atualizado com sucesso',
+    user: updatedUser,
+    datetime: new Date().toISOString()
+  }))
+}
